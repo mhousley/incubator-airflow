@@ -39,7 +39,8 @@ _operators = {
     'spark_submit_operator': ['SparkSubmitOperator'],
     'file_to_wasb': ['FileToWasbOperator'],
     'fs_operator': ['FileSensor'],
-    'hive_to_dynamodb': ['HiveToDynamoDBTransferOperator']
+    'hive_to_dynamodb': ['HiveToDynamoDBTransferOperator'],
+    'snowflake_operator': ['SnowflakeSQL'],
 }
 
 import os as _os

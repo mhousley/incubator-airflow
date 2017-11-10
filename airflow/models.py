@@ -558,6 +558,7 @@ class Connection(Base, LoggingMixin):
         ('databricks', 'Databricks',),
         ('aws', 'Amazon Web Services',),
         ('emr', 'Elastic MapReduce',),
+        ('snowflake', 'Snowflake'),
     ]
 
     def __init__(
@@ -700,6 +701,9 @@ class Connection(Base, LoggingMixin):
             elif self.conn_type == 'docker':
                 from airflow.hooks.docker_hook import DockerHook
                 return DockerHook(docker_conn_id=self.conn_id)
+            elif self.conn_type == 'snowflake':
+                from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
+                return SnowflakeHook(snowflake_conn_id=self.conn_id)
         except:
             pass
 
