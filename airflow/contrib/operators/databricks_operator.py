@@ -270,7 +270,7 @@ class DatabricksRunNowOperator(BaseOperator):
         """
         Creates a new ``DatabricksRunNowOperator``.
         """
-        super(DatabricksSubmitRunOperator, self).__init__(**kwargs)
+        super(DatabricksRunNowOperator, self).__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
         self.polling_period_seconds = polling_period_seconds
