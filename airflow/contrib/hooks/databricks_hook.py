@@ -30,6 +30,7 @@ except ImportError:
 
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
+RUN_NOW_ENDPOINT = ('POST', 'api/2.0/jobs/run-now')
 CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
@@ -146,6 +147,18 @@ class DatabricksHook(BaseHook, LoggingMixin):
         :rtype: string
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
+        return response['run_id']
+
+    def run_now(self, json):
+        """
+        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+
+        :param json: The data used in the body of the request to the ``submit`` endpoint.
+        :type json: dict
+        :return: the run_id as a string
+        :rtype: string
+        """
+        response = self._do_api_call(RUN_NOW_ENDPOINT, json)
         return response['run_id']
 
     def get_run_page_url(self, run_id):

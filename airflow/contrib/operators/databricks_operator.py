@@ -252,3 +252,94 @@ class DatabricksSubmitRunOperator(BaseOperator):
             'Task: %s with run_id: %s was requested to be cancelled.',
             self.task_id, self.run_id
         )
+
+class DatabricksRunNowOperator(BaseOperator):
+    # Used in airflow.models.BaseOperator
+    template_fields = ('json',)
+    # Databricks brand color (blue) under white text
+    ui_color = '#1CB1C2'
+    ui_fgcolor = '#fff'
+
+    def __init__(
+            self,
+            json,
+            databricks_conn_id='databricks_default',
+            polling_period_seconds=30,
+            databricks_retry_limit=3,
+            **kwargs):
+        """
+        Creates a new ``DatabricksRunNowOperator``.
+        """
+        super(DatabricksSubmitRunOperator, self).__init__(**kwargs)
+        self.json = json or {}
+        self.databricks_conn_id = databricks_conn_id
+        self.polling_period_seconds = polling_period_seconds
+        self.databricks_retry_limit = databricks_retry_limit
+        self.json = self._deep_string_coerce(self.json)
+        # This variable will be used in case our task gets killed.
+        self.run_id = None
+
+    def _deep_string_coerce(self, content, json_path='json'):
+        """
+        Coerces content or all values of content if it is a dict to a string. The
+        function will throw if content contains non-string or non-numeric types.
+
+        The reason why we have this function is because the ``self.json`` field must be a dict
+        with only string values. This is because ``render_template`` will fail for numerical values.
+        """
+        c = self._deep_string_coerce
+        if isinstance(content, six.string_types):
+            return content
+        elif isinstance(content, six.integer_types+(float,)):
+            # Databricks can tolerate either numeric or string types in the API backend.
+            return str(content)
+        elif isinstance(content, (list, tuple)):
+            return [c(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
+        elif isinstance(content, dict):
+            return {k: c(v, '{0}[{1}]'.format(json_path, k))
+                    for k, v in list(content.items())}
+        else:
+            param_type = type(content)
+            msg = 'Type {0} used for parameter {1} is not a number or a string' \
+                    .format(param_type, json_path)
+            raise AirflowException(msg)
+
+    def _log_run_page_url(self, url):
+        self.log.info('View run status, Spark UI, and logs at %s', url)
+
+    def get_hook(self):
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit)
+
+    def execute(self, context):
+        hook = self.get_hook()
+        self.run_id = hook.run_now(self.json)
+        run_page_url = hook.get_run_page_url(self.run_id)
+        self.log.info('Run submitted with run_id: %s', self.run_id)
+        self._log_run_page_url(run_page_url)
+        while True:
+            run_state = hook.get_run_state(self.run_id)
+            if run_state.is_terminal:
+                if run_state.is_successful:
+                    self.log.info('%s completed successfully.', self.task_id)
+                    self._log_run_page_url(run_page_url)
+                    return
+                else:
+                    error_message = '{t} failed with terminal state: {s}'.format(
+                        t=self.task_id,
+                        s=run_state)
+                    raise AirflowException(error_message)
+            else:
+                self.log.info('%s in run state: %s', self.task_id, run_state)
+                self._log_run_page_url(run_page_url)
+                self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
+                time.sleep(self.polling_period_seconds)
+
+    def on_kill(self):
+        hook = self.get_hook()
+        hook.cancel_run(self.run_id)
+        self.log.info(
+            'Task: %s with run_id: %s was requested to be cancelled.',
+            self.task_id, self.run_id
+        )
