@@ -54,7 +54,7 @@ class PigCliHook(BaseHook):
         """
 
         with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
+            with NamedTemporaryFile(dir=tmp_dir,mode='w') as f:
                 f.write(pig)
                 f.flush()
                 fname = f.name
